@@ -1,0 +1,12 @@
+---
+title: "p8105_hw2_yl5839"
+author: "Yuying Lu"
+date: "2024-09-29"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is a Rmarkdown for hw2 of p8105.
