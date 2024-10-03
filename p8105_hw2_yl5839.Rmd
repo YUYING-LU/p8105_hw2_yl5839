@@ -70,6 +70,8 @@ There are `r nrow(train_A)` stations serve train A and `r sum(train_A$ada)` amon
 
 # Problem 2
 
+Import and combine the three datasets:
+
 ```{r}
 mr_trash_wheel = 
   read_excel("./data/202409 Trash Wheel Collection Data.xlsx", sheet = 1) |>
@@ -107,6 +109,14 @@ gwy_cigg = gwy_trash_wheel |> filter(month=='June' & year == 2022)
 gwy_cigg_num = sum(gwy_cigg$cigarette_butts)
 ```
 
+### Description
+
+Since the Professor Trash Wheel and Gwynnda datasets contain less columns than Mr. Trash Wheel, I add NA columns to both of them in order to make the three dataset have the same columns. Besides, to keep track of which Trash Wheel is which, I add a column named `wheel_type` to each of the three dataset. Finally, I combine the three dataset and the resulting data contains `r ncol(df_combine)` columns and `r nrow(df_combine)` rows.
+
+To be more specific, the columns of the dataset are `r colnames(df_combine)`. It records the data of the Trash Wheel did its work, how much trash it collected, which dumpster they dumped the trash into and how much electricity these trash can make for Maryland homes.
+
+
+### Answer
 
 - The total weight of trash collected by Professor Trash Wheel is `r prof_trash`.
 
@@ -121,7 +131,7 @@ gwy_cigg_num = sum(gwy_cigg$cigarette_butts)
 ```{r}
 baker_df = read_csv("./data/gbb_datasets/bakers.csv") |> 
   janitor::clean_names() |> 
-  separate(baker_name, into = c("baker", "first_name"), sep = " ")
+  separate(baker_name, into = c("baker", "last_name"), sep = " ")
 bakes_df = read_csv("./data/gbb_datasets/bakes.csv")|> 
   janitor::clean_names() |> 
   mutate(baker = ifelse(baker=='"Jo"',"Jo",baker))
@@ -133,7 +143,38 @@ results_df = read_csv("./data/gbb_datasets/results.csv", skip=2)|>
 merge_df = merge(baker_df,bakes_df, by = intersect(colnames(bakes_df),colnames(baker_df)))
 merge_df = merge(merge_df,results_df, by = intersect(colnames(merge_df),colnames(results_df)))
 
-merge_df
+head(merge_df,5)
+write_csv(merge_df,"data/gbb_datasets/megered_data.csv")
 
 ```
 
+I check each dataset and find that the baker_name recorded in bakers.csv is the full name while that in bakes.csv and result.csv only includes first name. So I use `seperate()` function to divides the baker name into the first name and last name, which are named as `baker` and `last name` respectively. 
+
+Additionally, the baker name contains a special case `"Jo"` in bakes.csv, so I change `"Jo"` to `Jo` via `mutate()`. Finally, I merge the three datasets together and the final dataset only includes the observation (consists of series, baker and episode) that belongs to all of the three datasets. My final dataset has `r ncol(merge_df)` columns and `r nrow(merge_df)` rows. The columns include the baker's name, age, occupation, hometown, signature bake, show stopper, and also the series, episode and technical and the result.
+
+
+### Showing Baker Winner
+
+The following table shows the winner or star baker of each episode in Seasons 5 through 10.
+
+```{r}
+winner_tab = results_df |> filter((result %in% c('WINNER','STAR BAKER')) & (series %in% 5:10)) |> 
+  mutate(series=paste('series',series),
+         episode= paste('episode',episode)) |> 
+  select(c('series', 'episode', 'baker')) |> 
+  pivot_wider(names_from = series, values_from = baker)
+colnames(winner_tab)[1]<-'episode/series'
+knitr::kable(winner_tab)
+```
+
+I find that the WINNER in most series was the person who had won the most times of 'STAR BAKER' in the previous 9 episodes in the same series. However, there was a special case in series10. The WINNER in series10 is David, who never won a 'STAR BAKER' or 'WINNER' in the previous episodes.
+
+### Viewership Data
+
+```{r}
+viewer_df = read_csv("./data/gbb_datasets/viewers.csv") |> 
+  janitor::clean_names() 
+head(viewer_df,10)
+```
+
+The average viewership in Season 1 is `r mean(viewer_df$series_1, na.rm=T)`, while the average viewership in Season 5 is  `r mean(viewer_df$series_5, na.rm=T)`.
