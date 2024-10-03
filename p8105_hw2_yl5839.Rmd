@@ -6,7 +6,134 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning=FALSE)
 ```
 
-This is a Rmarkdown for hw2 of p8105.
+Import necessary packages
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+# Problem 1
+
+## Data Importing and Cleaning
+
+```{r}
+df_nyc_trans = read_csv("./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") |> 
+  janitor::clean_names() |> 
+  select(c('line', 'station_name', 'station_latitude', 'station_longitude', 'route1', 'route2', 'route3', 'route4', 'route5','route6', 'route7', 'route8', 'route9', 'route10', 'route11', 'entry', 'vending', 'entrance_type', 'ada')) |> 
+  mutate(entry = ifelse(entry=='YES', TRUE, FALSE),
+         vending = ifelse(vending=='YES', TRUE, FALSE))
+head(df_nyc_trans,5)
+```
+
+### Description
+
+The NYC transit contains information related to each entrance and exit for each subway station in NYC, such as the line, station, name, station latitude or longitude, routes served, entry, vending, entrance type, and ADA compliance. 
+
+I clean the data by first clean the column names using `janitor::clean_names()` and then select the useful columns I need via `select()`. After that I convert (`YES` or `NO`) in column `entry` and `vending` to logical variable `TRUE` or `FALSE` using `ifelse()`. Finally I got the resulting data with `r ncol(df_nyc_trans)` columns and `r nrow(df_nyc_trans)` rows. 
+
+### Answer
+
+- There are totally `r nrow(distinct(df_nyc_trans[,1:2]))` distinct stations;
+- There are `r sum(df_nyc_trans$ada)` stations are ADA compliant;
+- There are `r round((1-sum(df_nyc_trans$vending)/nrow(df_nyc_trans))*100,3)`\% of entrances/exits without vending allow entrance.
+
+### Reformat Data
+
+Reform the data with route number and route name being distinct variables.
+
+```{r}
+df_re = df_nyc_trans |> 
+  mutate(route8=as.character(route8),
+         route9=as.character(route9),
+         route10=as.character(route10),
+         route11=as.character(route11),) |> 
+  pivot_longer(route1:route11,
+               names_to = 'route_number',
+               values_to = 'route_name') |> 
+  select(route_number, route_name, everything())
+  
+head(df_re)
+```
+
+```{r}
+train_A = df_re |> filter(route_name=='A')
+train_A
+```
+
+
+There are `r nrow(train_A)` stations serve train A and `r sum(train_A$ada)` among them are ADA compliant.
+
+
+# Problem 2
+
+```{r}
+mr_trash_wheel = 
+  read_excel("./data/202409 Trash Wheel Collection Data.xlsx", sheet = 1) |>
+  janitor::clean_names() |> 
+  select(-c('x15','x16')) |> 
+  filter(is.na(dumpster)==FALSE) |> 
+  mutate(sports_balls = as.integer(round(sports_balls)),
+         wheel_type = "Mr. Trash Wheel")
+
+prof_trash_wheel = 
+  read_excel("./data/202409 Trash Wheel Collection Data.xlsx", sheet = 2) |>
+  janitor::clean_names()  |> 
+  filter(is.na(dumpster)==FALSE) |> 
+  mutate(wheel_type = "Professor Trash Wheel",
+         sports_balls= NA,
+         glass_bottles= NA) |> 
+  select(colnames(mr_trash_wheel))
+
+gwy_trash_wheel = 
+  read_excel("./data/202409 Trash Wheel Collection Data.xlsx", sheet = 4) |>
+  janitor::clean_names() |> 
+  filter(is.na(dumpster)==FALSE) |> 
+  mutate(wheel_type = "Gwynnda Trash Wheel",
+         sports_balls= NA,
+         glass_bottles = NA,
+         plastic_bags = NA)|> 
+  select(colnames(mr_trash_wheel))
+
+df_combine = rbind(mr_trash_wheel, prof_trash_wheel)
+df_combine = rbind(df_combine, gwy_trash_wheel)
+df_combine
+
+prof_trash = sum(prof_trash_wheel$weight_tons, na.rm=T)
+gwy_cigg = gwy_trash_wheel |> filter(month=='June' & year == 2022)
+gwy_cigg_num = sum(gwy_cigg$cigarette_butts)
+```
+
+
+- The total weight of trash collected by Professor Trash Wheel is `r prof_trash`.
+
+- The total number of cigarette butts collected by Gwynnda in June of 2022 is `r gwy_cigg_num`.
+
+
+
+# Problem 3
+
+## Create a Well-organized Dataset
+
+```{r}
+baker_df = read_csv("./data/gbb_datasets/bakers.csv") |> 
+  janitor::clean_names() |> 
+  separate(baker_name, into = c("baker", "first_name"), sep = " ")
+bakes_df = read_csv("./data/gbb_datasets/bakes.csv")|> 
+  janitor::clean_names() |> 
+  mutate(baker = ifelse(baker=='"Jo"',"Jo",baker))
+  
+results_df = read_csv("./data/gbb_datasets/results.csv", skip=2)|> 
+  janitor::clean_names()|> 
+  mutate(baker = ifelse(baker=='"Jo"',"Jo",baker))
+
+merge_df = merge(baker_df,bakes_df, by = intersect(colnames(bakes_df),colnames(baker_df)))
+merge_df = merge(merge_df,results_df, by = intersect(colnames(merge_df),colnames(results_df)))
+
+merge_df
+
+```
+
